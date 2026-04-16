@@ -1,0 +1,31 @@
+#pragma once
+
+// ---------------------------------------------------------------------------
+// TinyUSB configuration for the CozyGlow Console
+// Both MIDI and CDC classes are compiled in. The active USB descriptor is
+// chosen at boot time from a GPIO switch (see usb_descriptors.c).
+// ---------------------------------------------------------------------------
+
+#define CFG_TUSB_MCU    OPT_MCU_RP2040
+#define CFG_TUSB_OS     OPT_OS_PICO
+
+#define CFG_TUSB_RHPORT0_MODE   OPT_MODE_DEVICE
+
+#define CFG_TUD_ENDPOINT0_SIZE  64
+
+// Classes in use
+#define CFG_TUD_MIDI    1
+#define CFG_TUD_CDC     1
+
+// Unused
+#define CFG_TUD_HID     0
+#define CFG_TUD_MSC     0
+#define CFG_TUD_VENDOR  0
+
+// Buffer sizes
+#define CFG_TUD_MIDI_RX_BUFSIZE  64
+#define CFG_TUD_MIDI_TX_BUFSIZE  64
+
+#define CFG_TUD_CDC_RX_BUFSIZE         64
+#define CFG_TUD_CDC_TX_BUFSIZE         64
+#define CFG_TUD_CDC_EP_NOTIF_BUFSIZE   8

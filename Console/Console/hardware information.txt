@@ -1,0 +1,129 @@
+Visually, the console has
+* 14 green LEDs
+* a 4-digi 7-segment display
+* 35 buttons
+* 18 faders
+
+Faders are divided in groups of 8, and use 8-to-1 analog muxes
+that means they utilize 3 analog outputs and 3 scanning binary select lines
+If MCU requires it, we can replace muxes 0 and 1 for a 16-channel mux instead, exchanging one ADC for select line, which on the RP2040 might be desireable due to its limited ADC mux.
+
+Buttons are arranged as a matrix as well as the buttons and display
+
+Original unit had a small microntroller in there, which we can replace with our RP2040 daugther board
+
+Plan Concept:
+Turn this DMX controller into a MIDI controller
+
+Use an RP2040 to read all 18 faders and 35 buttons
+Faders shall be sent via MIDI using CCs. From 0 to 17 as usual
+Buttons will send note on/off events
+Make a driver for LEDs
+There are also 18 WS2812 LEDs on each slider I added to show important information
+
+This is my naive view. If you think there are better protocols for this let me know!
+
+My plan for the unit and afterthoughts:
+While this is a DMX controller and will be turned into a MIDI controller, 
+I will use this with a custom  Theatre light desk software we will create.
+The part im most interested in is the faders
+eveything else is a plus, since:
+* I don't really need buttons; I will use a MIDI keyboard for that
+* I don't need the display either unless I truly need to show some basic information like perhaps choosing which MIDI channel it will send data to... I'll let you think about the sideffects of that
+* Buttons Scan 1, Scan 2, 3, 4..., 11, 12 have an LED assigned to them. Maybe these buttons could send commands or keys to the software when enabled
+and the software can reply back with a state for the LEDs. That way, they can be used for quick access to modes and stuff, like custom assigned actions in the control desk software (Pegasi)
+Eitherway... they shouldn't do anything on their own
+
+In essence, turning this into a control surface
+
+Turns out most things were driven by two ports:
+One would perform most readings and writings using 8-bit bus
+The other would handle select lines
+
+# Hardware notes for myself and others who join the project.
+These notes are mostly for reverse engineering purposes
+
+Turns out I was mistaken:
+There's just one ADC line, and all 74HC4051 share the same analog bus, while their /EN lines are used to select which chip to read.
+So, effectively, they form an 8x3 matrix
+where the 8 columns are select using pins S0, S1 and S2
+and the row is selected using the respective chip's /EN line
+
+There's
+PortA: 8-bit IO
+and PortB: 8-bit O only
+
+Here's where I need to question if it makes any sense to plug our RP2040 directly to each chip and matrix
+or if we should use the original circuitry including the HC245 and HC573 array IO "controller"
+
+There are 6 extra chips
+* one 74HC245 (U3) and five 74HC573 (U5, U11, U4, U16 and U2)
+
+* U4  Drives the LED rows (drives transistors)
+* U5  Drives the LED columns (assuming a row is a contiguous array of LEDs)
+* U3  Is the button reader
+* U16 Is the button driver (Has output diodes, so a given scanning row/column is active LOW. However, it does not have anti-ghosting diodes... so ghosting is possible... though it may not require handling, since the user will almost never use more that one or two buttons at once, and ghosting is critical only at 3+ buttons begin held)
+* U11 Is the MUX select pins (D0, D1, D2 = S0, S1, S2; D3, D4, D5 = IC0_/EN, IC1_/EN, IC2_/EN) U11 selects which fader to read
+* U2  Seems to be related to the original CPU's RAM chip (It used discrete CPU, RAM and ROM ICs)
+
+U16(6) -> [6x6 BUTTON MATRIX]
+              v
+            U3 (6)
+
+U4(7) -> [8x7 LED MATRIX]
+              ^
+            U5(8)
+
+Here's also a map of what each pin of the orignal CPU did on the socket:
+
+Pins:
+1 	U4  Latch Strobe (LED ROW)	40	IO0
+2 	U5  Latch Strobe (LED COL)	39	IO1
+3 	U3  Button Read /EN		    38	IO2
+4 	U11 Latch Strobe (MUX)	    37	IO3
+5 	Muxes Common		        36	IO4
+6 				                35	IO5
+7 				                34	IO6
+8 				                33	IO7
+9 				                32	
+10				                31
+11				                30	U2 Latch Enable
+12				                29
+13				                28
+14	U16 Latch Strobe (BTN ROW)	27
+15				                26
+16				                25
+17				                24
+18				                23
+19				                22
+20				                21
+
+When I say LEDs that includes the 4-digit 7-segment Display. It has: 4x 7-seg digits + 7 extra symbols that don't really mean much to us
+
+In total we need 15 pins and we multiplex ourselves... We don't loose much keeping the orignal circuit, even if we don't use it fully
+The 15th pin is for the WS2812 LEDs. U2 is excluded, it seems to be completely useless to us.
+
+Below is a map of bit mask to fader select
+Fader	| D76543210
+0	|  xx110000
+1	|  xx110001
+2	|  xx110010
+3	|  xx110011
+4	|  xx110100
+5	|  xx110101
+6	|  xx110110
+7	|  xx110111
+8	|  xx101000
+9	|  xx101001
+10	|  xx101010
+11	|  xx101011
+12	|  xx101100
+13	|  xx101101
+14	|  xx101110
+15	|  xx101111
+16	|  xx011000
+17	|  xx011001
+
+
+I'll leave this open for you to choose what the appropiate pin map (RP2040 to Console) could be. I think I might end up constructing a board that fits directly where the OG CPU was... 
+The orginal console has a DMXin/out port, MIDI in and more that i disgracefully recmoved cause I really don't need for this project
