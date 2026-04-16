@@ -5,35 +5,23 @@
 constexpr uint8_t FIRMWARE_VERSION = 1;
 
 // ── Protocol Identity ─────────────────────────────────────────────────────────
-constexpr uint8_t  MAGIC_WORD[3]      = { 0x43, 0x47, 0x4E };  // "CGN" — CozyGlow Node
-constexpr uint8_t  ESPNOW_CHANNELS[3] = { 1, 6, 11 };           // Standard non-overlapping WiFi channels
-constexpr uint8_t  IMPOSSIBLE_INDEX   = 0xFF;                    // Sentinel: node not yet assigned a slot
+constexpr uint8_t MAGIC_WORD[3]      = { 0x43, 0x47, 0x4E };  // "CGN" — CozyGlow Node
+constexpr uint8_t ESPNOW_CHANNELS[3] = { 1, 6, 11 };           // Standard non-overlapping WiFi channels
 
 // ── Timing ────────────────────────────────────────────────────────────────────
 constexpr uint32_t CHANNEL_SCAN_DWELL_MS  = 1500;  // Listen on each channel before advancing in scan
-constexpr uint32_t SIGNAL_LOSS_TIMEOUT_MS = 1500;  // No stream for this long → signal lost
+constexpr uint32_t SIGNAL_LOSS_TIMEOUT_MS = 1500;  // No stream for this long → enter scan
 constexpr uint32_t SIGNAL_LOSS_FADE_MS    = 2000;  // Beams ramp to zero over this duration on signal loss
 
 // ── Beams Engine ─────────────────────────────────────────────────────────────
-constexpr float    BEAM_GAMMA       = 2.2f;   // Perceptual gamma — tune empirically
-constexpr uint32_t BEAM_RAMP_UP_MS  = 500;    // Restore-from-black on stream resume
-// Ramp-down duration reuses SIGNAL_LOSS_FADE_MS
+constexpr float    BEAM_GAMMA      = 2.2f;  // Perceptual gamma — tune empirically
+constexpr uint32_t BEAM_RAMP_UP_MS = 500;   // Restore-from-black on stream resume
 
-// ── Beam Layout ───────────────────────────────────────────────────────────────
-// Logical channel indices within a fixture's payload slice
-// Unused trailing channels are simply ignored — no special handling needed
-constexpr uint8_t BEAM_CH_R    = 0;
-constexpr uint8_t BEAM_CH_G    = 1;
-constexpr uint8_t BEAM_CH_B    = 2;
-constexpr uint8_t BEAM_CH_CW   = 3;
-constexpr uint8_t BEAM_CH_WW   = 4;
-constexpr uint8_t BEAM_CH_UV   = 5;
-constexpr uint8_t BEAM_CH_PAN  = 6;
-constexpr uint8_t BEAM_CH_TILT = 7;
-
-constexpr uint8_t LED_CHANNEL_COUNT   = 6;   // R G B CW WW UV — driven by beams engine
-constexpr uint8_t SERVO_CHANNEL_COUNT = 2;   // Pan Tilt       — driven by servo engine
-constexpr uint8_t MAX_SPAN            = LED_CHANNEL_COUNT + SERVO_CHANNEL_COUNT;
+// ── Output Channel Counts (hardware facts) ────────────────────────────────────
+// These describe how many PWM outputs exist on this board.
+// What each channel carries is determined by the master's slot assignment — not this firmware.
+constexpr uint8_t LED_CHANNEL_COUNT   = 6;
+constexpr uint8_t SERVO_CHANNEL_COUNT = 2;
 
 // ── GPIO Pin Assignments ──────────────────────────────────────────────────────
 namespace Pin {
@@ -41,17 +29,13 @@ namespace Pin {
     constexpr uint8_t BATTERY_ADC = 36;   // ADC1_CH0, input-only
     constexpr uint8_t TEMP_ADC    = 39;   // ADC1_CH3, input-only
 
-    // LED PWM — LEDC Timer A (40 kHz, 10-bit)
-    constexpr uint8_t LED_R  = 32;
-    constexpr uint8_t LED_G  = 33;
-    constexpr uint8_t LED_B  = 25;
-    constexpr uint8_t LED_CW = 26;
-    constexpr uint8_t LED_WW = 27;
-    constexpr uint8_t LED_UV = 13;
+    // LED PWM outputs — LEDC Timer A (40 kHz, 10-bit)
+    // Indices 0–5 map to the 6 output pads in physical board order.
+    // The master decides what each index carries (R, G, B, CW, WW, UV, or anything else).
+    constexpr uint8_t LED[LED_CHANNEL_COUNT] = { 32, 33, 25, 26, 27, 13 };
 
-    // Servo PWM — LEDC Timer B (50 Hz, 16-bit)
-    constexpr uint8_t SERVO_PAN  = 16;
-    constexpr uint8_t SERVO_TILT = 17;
+    // Servo PWM outputs — LEDC Timer B (50 Hz, 16-bit)
+    constexpr uint8_t SERVO[SERVO_CHANNEL_COUNT] = { 16, 17 };
 
     // Diagnostic status LED (WS2812 — timing-sensitive, isolated)
     constexpr uint8_t DIAG_LED = 19;
@@ -76,13 +60,7 @@ namespace Ledc {
     constexpr uint8_t TIMER_LED   = 0;   // Timer A — all LED channels
     constexpr uint8_t TIMER_SERVO = 1;   // Timer B — both servo channels
 
-    // Hardware channel assignments (LEDC channels, distinct from beam logical channels)
-    constexpr uint8_t CH_LED_R    = 0;
-    constexpr uint8_t CH_LED_G    = 1;
-    constexpr uint8_t CH_LED_B    = 2;
-    constexpr uint8_t CH_LED_CW   = 3;
-    constexpr uint8_t CH_LED_WW   = 4;
-    constexpr uint8_t CH_LED_UV   = 5;
-    constexpr uint8_t CH_SERVO_PAN  = 6;
-    constexpr uint8_t CH_SERVO_TILT = 7;
+    // Hardware LEDC channel assignments — parallel to Pin::LED and Pin::SERVO
+    constexpr uint8_t LED_CH[LED_CHANNEL_COUNT]     = { 0, 1, 2, 3, 4, 5 };
+    constexpr uint8_t SERVO_CH[SERVO_CHANNEL_COUNT] = { 6, 7 };
 }

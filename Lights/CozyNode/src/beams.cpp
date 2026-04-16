@@ -3,16 +3,7 @@
 #include <Arduino.h>
 #include <math.h>
 
-// ── GPIO and LEDC channel tables (indexed 0–5, matching BEAM_CH_* constants) ──
-static const uint8_t LED_PINS[LED_CHANNEL_COUNT] = {
-    Pin::LED_R, Pin::LED_G, Pin::LED_B,
-    Pin::LED_CW, Pin::LED_WW, Pin::LED_UV
-};
-
-static const uint8_t LEDC_CHANNELS[LED_CHANNEL_COUNT] = {
-    Ledc::CH_LED_R, Ledc::CH_LED_G, Ledc::CH_LED_B,
-    Ledc::CH_LED_CW, Ledc::CH_LED_WW, Ledc::CH_LED_UV
-};
+// Pin and LEDC tables are taken directly from config — no local copy needed.
 
 // ── State ─────────────────────────────────────────────────────────────────────
 static uint8_t  s_frame[LED_CHANNEL_COUNT] = {};
@@ -31,7 +22,7 @@ static void build_gamma_lut() {
 
 static void flush_to_ledc() {
     for (uint8_t ch = 0; ch < LED_CHANNEL_COUNT; ch++) {
-        ledcWrite(LEDC_CHANNELS[ch], (uint32_t)(s_lut[s_frame[ch]] * s_ramp));
+        ledcWrite(Ledc::LED_CH[ch], (uint32_t)(s_lut[s_frame[ch]] * s_ramp));
     }
 }
 
@@ -40,8 +31,8 @@ void beams_init() {
     build_gamma_lut();
 
     for (uint8_t ch = 0; ch < LED_CHANNEL_COUNT; ch++) {
-        ledcAttachChannel(LED_PINS[ch], Ledc::LED_FREQ_HZ, Ledc::LED_BITS, LEDC_CHANNELS[ch]);
-        ledcWrite(LEDC_CHANNELS[ch], 0);
+        ledcAttachChannel(Pin::LED[ch], Ledc::LED_FREQ_HZ, Ledc::LED_BITS, Ledc::LED_CH[ch]);
+        ledcWrite(Ledc::LED_CH[ch], 0);
     }
 
     s_last_tick_ms = millis();
@@ -62,7 +53,6 @@ void beams_set_all(const uint8_t* values, uint8_t count) {
 
 void beams_arm() {
     s_armed = true;
-    // ramp_dir is implicit from s_armed in tick — no explicit direction field needed
 }
 
 void beams_disarm() {

@@ -1,7 +1,10 @@
 #pragma once
 #include <cstdint>
 
-// Beams engine — owns all LED output for the 6 light channels (R G B CW WW UV).
+// Beams engine — owns all LED PWM output.
+// Drives LED_CHANNEL_COUNT outputs indexed 0 to LED_CHANNEL_COUNT-1.
+// What each index carries (colour, white, UV, anything) is the master's concern.
+// The node just maps stream bytes to PWM pins in order.
 //
 // Armed vs disarmed (target flag, set by state machine):
 //   Armed    — fixture is assigned and has valid stream data; ramp climbs to 1.0.
@@ -18,11 +21,11 @@
 
 void beams_init();
 
-// Write a single logical channel (0–5, use BEAM_CH_* constants). Out-of-range ignored.
+// Write to a single output channel by index (0 to LED_CHANNEL_COUNT-1). Out-of-range ignored.
 void beams_set(uint8_t channel, uint8_t value);
 
-// Write up to LED_CHANNEL_COUNT channels from a stream payload slice.
-// Values beyond LED_CHANNEL_COUNT are ignored; uncovered channels keep their last value.
+// Write up to LED_CHANNEL_COUNT channels from a raw stream slice.
+// Extra values are ignored; channels not covered keep their last value.
 void beams_set_all(const uint8_t* values, uint8_t count);
 
 // Set target to armed — begin ramping up. Idempotent if already fully armed.
